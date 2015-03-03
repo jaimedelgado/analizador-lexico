@@ -19,8 +19,9 @@ public class AnalizadorLexicoTiny {
    private static String NL = System.getProperty("line.separator");
    
    private static enum Estado {
-    INICIO, POR, NOT, DISTINTO, DIV, MOD, BARRA_OR, OR, COMA, SEPARADOR, PYCOMA, REFERENCIA, AND, CAP, VAR, CERO, PUNTODECIMAL, EOF, 
-    NUMREAL, NUMNATURAL, PUNTO, CCIERRE, MENOR, MENORIGUAL, PAP, PCIERRE, MAYOR, MAYORIGUAL, APOSTROFE, MAS, ASIG, IGUAL, MENOS
+    INICIO, SEP, POR, NOT, DISTINTO, DIV, MOD, BARRA_OR, OR, COMA, SEPARADOR, PYCOMA, REFERENCIA, AND, CAP, VAR, CERO, PUNTODECIMAL, EOF, 
+    NUMREAL, NUMNATURAL, EXP, MENOSEXP, ENTEROEXP, PUNTO, CCIERRE, MENOR, MENORIGUAL, PAP, ICASTING, NCASTING, TCASTING,
+    RCASTING, ECASTING, ACASTING, LCASTING,CASTINT, CASTREAL, PCIERRE, MAYOR, MAYORIGUAL, APOSTROFE, MAS, ASIG, IGUAL, MENOS
    }
 
    private Estado estado;
@@ -85,7 +86,7 @@ public class AnalizadorLexicoTiny {
               else if (hayCap()) transita(Estado.CAP);
               else if (hayVar()) transita(Estado.VAR);
               else if (hayCero()) transita(Estado.CERO);
-              else if (hayNumNaturalDigitoPos()) transita(Estado.NUMNATURAL);
+              else if (hayDigitoPos()) transita(Estado.NUMNATURAL);
               else if (hayPunto()) transitaIgnorando(Estado.PUNTO);
               else if (hayCCierre()) transitaIgnorando(Estado.CCIERRE);
               else if (hayMenor()) transita(Estado.MENOR);
@@ -94,85 +95,232 @@ public class AnalizadorLexicoTiny {
               else if (hayMayor()) transita(Estado.MAYOR);
               else if (hayApostrofe()) transita(Estado.APOSTROFE);
               else if (hayMas()) transita(Estado.MAS);
-              else if (hayAsig()) transita(Estado.ASIG);
+              else if (hayIgual()) transita(Estado.ASIG);
               else if (hayMenos()) transita(Estado.MENOS);
               else if (hayPor()) transita(Estado.POR);
               else if (hayNot()) transita(Estado.NOT);
               else if (hayEOF()) transita(Estado.EOF);
+              else if(hayIgnorable()) transitaIgnorando(Estado.INICIO);
               else error();
               break;
            case BARRA_OR: 
-              if (hayOr()) transita(Estado.OR);    
-              else if (hayEOF()) transita(Estado.EOF);
+              if (hayOr()) transita(Estado.OR);
               else error();
               break;
-           case NOT:
-               if (hayDistinto()) transita(Estado.DISTINTO);
-               else if (hayEOF()) transita(Estado.EOF);
-               else return unidadNot();
-               break;
-           case ASIG:
-               if (hayIgual()) transita(Estado.IGUAL);
-               else if (hayEOF()) transita(Estado.EOF);
-               else return unidadAsig();
-               break;
-           case MAYOR:
-               if (hayMayorIgual()) transita(Estado.MAYORIGUAL);
-               else if (hayEOF()) transita(Estado.EOF);
-               else return unidadMayor();
-               break;
-           case MENOR: 
-               if (hayMenorIgual()) transita(Estado.MENORIGUAL);
-               else if (hayEOF()) transita(Estado.EOF);
-               else return unidadMenor();
-               break;
+           case OR:
+        	   return unidadOr();
+           case COMA:
+        	   return unidadComa();
+           case SEP: 
+        	   return unidadSep();
+           case PYCOMA:
+        	   return unidadPycoma();
+           case REFERENCIA: 
+        	   if (hayAnd()) transita(Estado.AND);
+        	   else return unidadReferencia();
+        	   break;
+           case AND:
+        	   return unidadAnd();
+           case CAP:
+        	   return unidadCap();
+           case VAR: 
+        	   if(hayVarConDigito()) transita(Estado.VAR);
+        	   else return unidadId();
+        	   break;
            case CERO: 
         	   if(hayPuntoDecimal()) transita(Estado.PUNTODECIMAL);
-        	   else if (hayEOF()) transita(Estado.EOF);
         	   else return unidadCero();
         	   break;
-           case NUMNATURAL: 
-        	   if(hayNumNaturalDigito()) transita(Estado.NUMNATURAL);
-        	   else if(hayPuntoDecimal()) transita(Estado.PUNTODECIMAL); 
-        	   else if (hayEOF()) transita(Estado.EOF);
-        	   else return unidadNumNatural();
-        	   break;
            case PUNTODECIMAL: 
-        	   if(hayNumNaturalDigito()) transita(Estado.NUMREAL);
-        	   else if (hayEOF()) transita(Estado.EOF);
+        	   if(hayDigito()) transita(Estado.NUMREAL);
         	   else error();
         	   break;
            case NUMREAL: 
-        	   if (hayNumNaturalDigitoPos()) transita(Estado.NUMREAL);
+        	   if (hayDigitoPos()) transita(Estado.NUMREAL);
+        	   else if (hayE()) transita(Estado.EXP);
         	   else if (hayCero()) transita(Estado.PUNTODECIMAL);
-        	   else if (hayEOF()) transita(Estado.EOF);
         	   else return unidadNumReal();
         	   break;
-           case VAR: 
-        	   if(hayVarConDigito()) transita(Estado.VAR);
-        	   else if (hayEOF()) transita(Estado.EOF);
-        	   else return unidadVar();
+           case NUMNATURAL: 
+        	   if(hayDigito()) transita(Estado.NUMNATURAL);
+        	   else if(hayPunto()) transita(Estado.PUNTODECIMAL); 
+        	   else if(hayE()) transita(Estado.EXP);
+        	   else return unidadNumNatural();
         	   break;
-           case REFERENCIA: 
-        	   if (hayAnd()) transita(Estado.AND);
-        	   else if (hayEOF()) transita(Estado.EOF);
-        	   else return unidadReferencia();
+           case EXP:
+        	   if(hayDigitoPos()) transita(Estado.ENTEROEXP);
+        	   else if(hayMenos()) transita(Estado.MENOSEXP);
+        	   else error();
         	   break;
+           case MENOSEXP:
+        	   if(hayDigitoPos()) transita(Estado.ENTEROEXP);
+        	   else error();
+        	   break;
+           case ENTEROEXP:
+        	   if(hayDigito()) transita(Estado.ENTEROEXP);
+        	   else return unidadEnteroExp();
+        	   break;
+           case PUNTO:
+        	   return unidadPunto();
+           case CCIERRE:
+        	   return unidadCCierre();
+           case MENOR: 
+               if (hayIgual()) transita(Estado.MENORIGUAL);
+               else return unidadMenor();
+               break;
+           case MENORIGUAL:
+        	   return unidadMenorIgual();
+           case PAP:
+        	   if(hayI()) transita(Estado.ICASTING);
+        	   else if (hayR()) transita(Estado.RCASTING);
+        	   else return unidadPap();
+        	   break;
+           case ICASTING:
+        	   if(hayN()) transita(Estado.NCASTING);
+        	   else error();
+        	   break;
+           case NCASTING:
+        	   if(hayT()) transita(Estado.TCASTING);
+        	   else error();
+        	   break;
+           case TCASTING:
+        	   if(hayPCierre()) transita(Estado.CASTINT);
+        	   else error();
+        	   break;
+           case CASTINT:
+        	   return unidadCastint();
+           case RCASTING:
+        	   if(hayE()) transita(Estado.ECASTING);
+        	   else error();
+        	   break;
+           case ECASTING:
+        	   if(hayA()) transita(Estado.ACASTING);
+        	   else error();
+        	   break;
+           case ACASTING:
+        	   if(hayL()) transita(Estado.LCASTING);
+        	   else error();
+        	   break;
+           case LCASTING:
+        	   if(hayPCierre())	transita(Estado.CASTREAL);
+        	   else error();
+        	   break;
+           case CASTREAL:
+        	   return unidadCastreal();
+           case PCIERRE:
+        	   return unidadPCierre();
+           case MAYOR:
+               if (hayIgual()) transita(Estado.MAYORIGUAL);
+               else return unidadMayor();
+               break;
+           case MAYORIGUAL:
+        	   return unidadMayorIgual();
+           case APOSTROFE:
+        	   return unidadApostrofe();
+           case MAS:
+        	   return unidadMas();
+           case ASIG:
+               if (hayIgual()) transita(Estado.IGUAL);
+               else return unidadAsig();
+               break;
+           case IGUAL:
+        	   return unidadIgual();
+           case MENOS:
+        	   return unidadMenos();
+           case POR:
+        	   return unidadPor();
+           case NOT:
+               if (hayIgual()) transita(Estado.DISTINTO);
+               else return unidadNot();
+               break;
+           case DIV:
+        	   return unidadDiv();
+           case MOD:
+        	   return unidadMod();
            case EOF: return unidadEOF();
+		default:
+			break;
          }
      }    
    }
-   private UnidadLexica unidadReferencia() {
+   private UnidadLexica unidadMod() {
+	   return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.MOD);    
+   }
+	private UnidadLexica unidadDiv() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.DIV);    
+	}
+	private UnidadLexica unidadPor() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.POR);    
+	}
+	private UnidadLexica unidadMenos() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.MENOS);    
+	}
+	private UnidadLexica unidadIgual() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.IGUAL);    
+	}
+	private UnidadLexica unidadMas() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.MAS);    
+	}
+	private UnidadLexica unidadApostrofe() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.APOSTROFE);    
+	}
+	private UnidadLexica unidadMayorIgual() {
+		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.MAYORIGUAL, lex.toString());    
+	}
+	private UnidadLexica unidadPCierre() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.REFERENCIA);    
+	}
+	private UnidadLexica unidadCastreal() {
+		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.CASTREAL, lex.toString());    
+	}
+	private UnidadLexica unidadCastint() {
+		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.CASTINT, lex.toString());    
+	}
+	private UnidadLexica unidadPap() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.PAP);    
+	}
+	private UnidadLexica unidadMenorIgual() {
+		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.MENORIGUAL, lex.toString());    
+	}
+	private UnidadLexica unidadCCierre() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.CCIERRE);    
+	}
+	private UnidadLexica unidadPunto() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.PUNTO);    
+	}
+	private UnidadLexica unidadEnteroExp() {
+		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMNATURAL, lex.toString());    
+	}
+	private UnidadLexica unidadCap() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.CAP);    
+	}
+	private UnidadLexica unidadAnd() {
+		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.AND, lex.toString());    
+	}
+	private UnidadLexica unidadPycoma() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.PYCOMA);    
+	}
+	private UnidadLexica unidadSep() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.SEPARADOR);    
+	}
+	private UnidadLexica unidadComa() {
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.COMA);    
+	}
+	private UnidadLexica unidadOr() {
+		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.OR, lex.toString());    
+	}
+	private UnidadLexica unidadReferencia() {
 	   return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.REFERENCIA);     
    }
+	@SuppressWarnings("unused")
 	private UnidadLexica unidadVar() {
-		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.NOMBRECAMPO);     
+		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NOMBRE, lex.toString());     
 	}
 	private UnidadLexica unidadNumReal() {
-		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.NUMREAL);     
+		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMREAL, lex.toString());     
 	}
 	private UnidadLexica unidadNumNatural() {
-		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.NUMNATURAL);     
+		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMNATURAL, lex.toString());     
 	}
 	private UnidadLexica unidadCero() {
 		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.CERO);     
@@ -221,7 +369,6 @@ public class AnalizadorLexicoTiny {
    
    private boolean hayPor() {return sigCar == '*';}
    private boolean hayNot() {return sigCar == '!';}
-   private boolean hayDistinto() {return sigCar == '=';}
    private boolean hayDiv() {return sigCar == '/';}
    private boolean hayMod() {return sigCar == '%';}
    private boolean hayBarraOr() {return sigCar == '|';}
@@ -237,23 +384,26 @@ public class AnalizadorLexicoTiny {
    private boolean hayIgnorable() {return sigCar == ' ' || sigCar == '\t' || sigCar=='\n';}
    private boolean hayCero() {return sigCar == '0';}
    private boolean hayPuntoDecimal() {return sigCar == '.';}
-   private boolean hayNumReal() {return sigCar >= '0' && sigCar <= '9';}
-   private boolean hayNumNaturalDigito() {return sigCar >= '0' && sigCar <= '9';}
-   private boolean hayNumNaturalDigitoPos() {return sigCar > '0' && sigCar <= '9';}
+   private boolean hayDigito() {return sigCar >= '0' && sigCar <= '9';}
+   private boolean hayDigitoPos() {return sigCar > '0' && sigCar <= '9';}
    private boolean hayPunto() {return sigCar == '.';}
    private boolean hayCCierre() {return sigCar == ']';}
    private boolean hayMenor() {return sigCar == '<';}
-   private boolean hayMenorIgual() {return sigCar == '=';}
    private boolean hayPAp() {return sigCar == '[';}
    private boolean hayPCierre() {return sigCar == ')';}
    private boolean hayMayor() {return sigCar == '>';}
-   private boolean hayMayorIgual() {return sigCar == '=';}
    private boolean hayApostrofe() {return sigCar == '^';}
    private boolean hayMas() {return sigCar == '+';}
-   private boolean hayAsig() {return sigCar == '=';}
    private boolean hayIgual() {return sigCar == '=';}
    private boolean hayMenos() {return sigCar == '-';}
    private boolean hayEOF() {return sigCar == -1;}
+   private boolean hayE(){ return sigCar == 'e' | sigCar == 'E'; }
+   private boolean hayI(){ return sigCar == 'i' | sigCar == 'I'; }
+   private boolean hayN(){ return sigCar == 'n' | sigCar == 'N'; }
+   private boolean hayT(){ return sigCar == 't' | sigCar == 'T'; }
+   private boolean hayR(){ return sigCar == 'r' | sigCar == 'R'; }
+   private boolean hayA(){ return sigCar == 'a' | sigCar == 'A'; }
+   private boolean hayL(){ return sigCar == 'l' | sigCar == 'L'; }
    
    private UnidadLexica unidadId() {
 	     switch(lex.toString()) {
@@ -310,7 +460,7 @@ public class AnalizadorLexicoTiny {
 	         case Constantes.ENDWHILE:  
 		            return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.ENDWHILE);
 	         default:    
-	            return null;//new UnidadLexicaMultivaluada(filaInicio,columnaInicio,null, null);//ClaseLexica.IDEN,lex.toString());     
+	            return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NOMBRE,lex.toString());     
 	      }
    }  
  
