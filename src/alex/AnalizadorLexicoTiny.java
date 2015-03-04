@@ -19,9 +19,10 @@ public class AnalizadorLexicoTiny {
    private static String NL = System.getProperty("line.separator");
    
    private static enum Estado {
-    INICIO, SEP, POR, NOT, DISTINTO, DIV, MOD, BARRA_OR, OR, COMA, SEPARADOR, PYCOMA, REFERENCIA, AND, CAP, VAR, CERO, PUNTODECIMAL, EOF, 
-    NUMREAL, NUMNATURAL, EXP, MENOSEXP, ENTEROEXP, PUNTO, CCIERRE, MENOR, MENORIGUAL, PAP, ICASTING, NCASTING, TCASTING,
-    RCASTING, ECASTING, ACASTING, LCASTING,CASTINT, CASTREAL, PCIERRE, MAYOR, MAYORIGUAL, APOSTROFE, MAS, ASIG, IGUAL, MENOS
+    INICIO, SEPARADOR, POR, NOT, DISTINTO, DIV, MOD, BARRA_OR, OR, COMA, PYCOMA, REFERENCIA, AND, CAP, IDENTIFICADOR, CERO, PUNTODECIMAL, EOF, 
+    NUMREAL, NUMENTERO, EXP, MENOSEXP, NUMREALEXP, PUNTO, CCIERRE, MENOR, MENORIGUAL, PAP, ICASTING, NCASTING, TCASTING,
+    RCASTING, ECASTING, ACASTING, LCASTING,CASTINT, CASTREAL, PCIERRE, MAYOR, MAYORIGUAL, APOSTROFE, MAS, ASIG, IGUAL, MENOS,
+    COMENTARIO, CEROPARTEDECIMAL, CERODERECHA, 
    }
 
    private Estado estado;
@@ -84,9 +85,9 @@ public class AnalizadorLexicoTiny {
               else if (hayPycoma()) transita(Estado.PYCOMA);
               else if (hayReferencia()) transita(Estado.REFERENCIA);
               else if (hayCap()) transita(Estado.CAP);
-              else if (hayVar()) transita(Estado.VAR);
+              else if (hayIdentificador()) transita(Estado.IDENTIFICADOR);
               else if (hayCero()) transita(Estado.CERO);
-              else if (hayDigitoPos()) transita(Estado.NUMNATURAL);
+              else if (hayDigitoPos()) transita(Estado.NUMENTERO);
               else if (hayPunto()) transitaIgnorando(Estado.PUNTO);
               else if (hayCCierre()) transitaIgnorando(Estado.CCIERRE);
               else if (hayMenor()) transita(Estado.MENOR);
@@ -100,6 +101,7 @@ public class AnalizadorLexicoTiny {
               else if (hayPor()) transita(Estado.POR);
               else if (hayNot()) transita(Estado.NOT);
               else if (hayEOF()) transita(Estado.EOF);
+              else if (hayComentario()) transita(Estado.COMENTARIO);
               else if(hayIgnorable()) transitaIgnorando(Estado.INICIO);
               else error();
               break;
@@ -111,7 +113,7 @@ public class AnalizadorLexicoTiny {
         	   return unidadOr();
            case COMA:
         	   return unidadComa();
-           case SEP: 
+           case SEPARADOR: 
         	   return unidadSep();
            case PYCOMA:
         	   return unidadPycoma();
@@ -123,8 +125,8 @@ public class AnalizadorLexicoTiny {
         	   return unidadAnd();
            case CAP:
         	   return unidadCap();
-           case VAR: 
-        	   if(hayVarConDigito()) transita(Estado.VAR);
+           case IDENTIFICADOR: 
+        	   if(hayIdentificadorConDigito()) transita(Estado.IDENTIFICADOR);
         	   else return unidadId();
         	   break;
            case CERO: 
@@ -138,27 +140,27 @@ public class AnalizadorLexicoTiny {
            case NUMREAL: 
         	   if (hayDigitoPos()) transita(Estado.NUMREAL);
         	   else if (hayE()) transita(Estado.EXP);
-        	   else if (hayCero()) transita(Estado.PUNTODECIMAL);
+        	   else if (hayCero()) transita(Estado.CERODERECHA);
         	   else return unidadNumReal();
         	   break;
-           case NUMNATURAL: 
-        	   if(hayDigito()) transita(Estado.NUMNATURAL);
+           case NUMENTERO: 
+        	   if(hayDigito()) transita(Estado.NUMENTERO);
         	   else if(hayPunto()) transita(Estado.PUNTODECIMAL); 
         	   else if(hayE()) transita(Estado.EXP);
-        	   else return unidadNumNatural();
+        	   else return unidadNumEntero();
         	   break;
            case EXP:
-        	   if(hayDigitoPos()) transita(Estado.ENTEROEXP);
+        	   if(hayDigitoPos()) transita(Estado.NUMREALEXP);
         	   else if(hayMenos()) transita(Estado.MENOSEXP);
         	   else error();
         	   break;
            case MENOSEXP:
-        	   if(hayDigitoPos()) transita(Estado.ENTEROEXP);
+        	   if(hayDigitoPos()) transita(Estado.NUMREALEXP);
         	   else error();
         	   break;
-           case ENTEROEXP:
-        	   if(hayDigito()) transita(Estado.ENTEROEXP);
-        	   else return unidadEnteroExp();
+           case NUMREALEXP:
+        	   if(hayDigito()) transita(Estado.NUMREALEXP);
+        	   else return unidadNumRealExp();
         	   break;
            case PUNTO:
         	   return unidadPunto();
@@ -238,12 +240,33 @@ public class AnalizadorLexicoTiny {
            case MOD:
         	   return unidadMod();
            case EOF: return unidadEOF();
+           case CEROPARTEDECIMAL:
+        	   if(hayDigitoPos()) transita(Estado.CEROPARTEDECIMAL);
+        	   else if(hayCero()) transita(Estado.CERODERECHA);
+        	   else return unidadCeroParteDecimal();
+           case COMENTARIO:
+        	   if (hayNL()) transitaIgnorando(Estado.INICIO);
+               else if (hayEOF()) transita(Estado.EOF);
+               else transitaIgnorando(Estado.COMENTARIO);
+               break;
+           case CERODERECHA:
+        	   if(hayCero()) transita(Estado.CERODERECHA);
+        	   else if(hayDigitoPos()) transita(Estado.CEROPARTEDECIMAL);
+        	   else error();
+        	   break;
 		default:
 			break;
          }
      }    
    }
-   private UnidadLexica unidadMod() {
+   
+   private UnidadLexica unidadNumRealExp() {
+	   return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMREAL, lex.toString());
+	}
+	private UnidadLexica unidadCeroParteDecimal() {
+		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMREAL, lex.toString());
+	}
+	private UnidadLexica unidadMod() {
 	   return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.MOD);    
    }
 	private UnidadLexica unidadDiv() {
@@ -288,9 +311,6 @@ public class AnalizadorLexicoTiny {
 	private UnidadLexica unidadPunto() {
 		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.PUNTO);    
 	}
-	private UnidadLexica unidadEnteroExp() {
-		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMNATURAL, lex.toString());    
-	}
 	private UnidadLexica unidadCap() {
 		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.CAP);    
 	}
@@ -312,15 +332,11 @@ public class AnalizadorLexicoTiny {
 	private UnidadLexica unidadReferencia() {
 	   return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.REFERENCIA);     
    }
-	@SuppressWarnings("unused")
-	private UnidadLexica unidadVar() {
-		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NOMBRE, lex.toString());     
-	}
 	private UnidadLexica unidadNumReal() {
 		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMREAL, lex.toString());     
 	}
-	private UnidadLexica unidadNumNatural() {
-		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMNATURAL, lex.toString());     
+	private UnidadLexica unidadNumEntero() {
+		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMENTERO, lex.toString());     
 	}
 	private UnidadLexica unidadCero() {
 		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.CERO);     
@@ -379,8 +395,8 @@ public class AnalizadorLexicoTiny {
    private boolean hayReferencia() {return sigCar == '&';}
    private boolean hayAnd() {return sigCar == '&';}
    private boolean hayCap() {return sigCar == '[';}
-   private boolean hayVar() {return (sigCar >= 'a' && sigCar <='z') || (sigCar>='A' && sigCar<='Z') || sigCar == '_';}
-   private boolean hayVarConDigito() { return hayVar() || (sigCar >= '0' && sigCar <= '9'); }
+   private boolean hayIdentificador() {return (sigCar >= 'a' && sigCar <='z') || (sigCar>='A' && sigCar<='Z') || sigCar == '_';}
+   private boolean hayIdentificadorConDigito() { return hayIdentificador() || (sigCar >= '0' && sigCar <= '9'); }
    private boolean hayIgnorable() {return sigCar == ' ' || sigCar == '\t' || sigCar=='\n';}
    private boolean hayCero() {return sigCar == '0';}
    private boolean hayPuntoDecimal() {return sigCar == '.';}
@@ -389,7 +405,7 @@ public class AnalizadorLexicoTiny {
    private boolean hayPunto() {return sigCar == '.';}
    private boolean hayCCierre() {return sigCar == ']';}
    private boolean hayMenor() {return sigCar == '<';}
-   private boolean hayPAp() {return sigCar == '[';}
+   private boolean hayPAp() {return sigCar == '(';}
    private boolean hayPCierre() {return sigCar == ')';}
    private boolean hayMayor() {return sigCar == '>';}
    private boolean hayApostrofe() {return sigCar == '^';}
@@ -404,6 +420,8 @@ public class AnalizadorLexicoTiny {
    private boolean hayR(){ return sigCar == 'r' | sigCar == 'R'; }
    private boolean hayA(){ return sigCar == 'a' | sigCar == 'A'; }
    private boolean hayL(){ return sigCar == 'l' | sigCar == 'L'; }
+   private boolean hayNL() {return sigCar == '\r' || sigCar == '\b' || sigCar == '\n';}
+   private boolean hayComentario() { return sigCar == '@'; }
    
    private UnidadLexica unidadId() {
 	     switch(lex.toString()) {
@@ -469,6 +487,8 @@ public class AnalizadorLexicoTiny {
    }    
    private void error() {
      System.err.println("("+filaActual+','+columnaActual+"):Caracter inexperado");  
+     System.err.println("\"" + lex.toString() + "\"");
+     System.err.println("\"" + (char)sigCar + "\"");
      System.exit(1);
    }
 
