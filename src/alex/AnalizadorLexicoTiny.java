@@ -1,6 +1,7 @@
 package alex;
 
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.Reader;
 import java.io.InputStreamReader;
 import java.io.IOException;
@@ -66,7 +67,7 @@ public class AnalizadorLexicoTiny {
 	   this.palabrasReservadas.put(ClaseLexica.DO, Constantes.DO);
 	   this.palabrasReservadas.put(ClaseLexica.ENDIF, Constantes.ENDIF);
 	   this.palabrasReservadas.put(ClaseLexica.ENDWHILE, Constantes.ENDWHILE);
-	   this.palabrasReservadas.put(ClaseLexica.CERO, "cero");
+	   //this.palabrasReservadas.put(ClaseLexica.CERO, "cero");
 	   
    }
    public UnidadLexica sigToken() throws IOException {
@@ -131,7 +132,7 @@ public class AnalizadorLexicoTiny {
         	   break;
            case CERO: 
         	   if(hayPuntoDecimal()) transita(Estado.PUNTODECIMAL);
-        	   else return unidadCero();
+        	   else return unidadNumEntero();
         	   break;
            case PUNTODECIMAL: 
         	   if(hayDigito()) transita(Estado.NUMREAL);
@@ -244,6 +245,7 @@ public class AnalizadorLexicoTiny {
         	   if(hayDigitoPos()) transita(Estado.CEROPARTEDECIMAL);
         	   else if(hayCero()) transita(Estado.CERODERECHA);
         	   else return unidadCeroParteDecimal();
+        	   break;
            case COMENTARIO:
         	   if (hayNL()) transitaIgnorando(Estado.INICIO);
                else if (hayEOF()) transita(Estado.EOF);
@@ -254,13 +256,18 @@ public class AnalizadorLexicoTiny {
         	   else if(hayDigitoPos()) transita(Estado.CEROPARTEDECIMAL);
         	   else error();
         	   break;
+           case DISTINTO:
+        	   return unidadDistinto();
 		default:
 			break;
          }
      }    
    }
    
-   private UnidadLexica unidadNumRealExp() {
+   	private UnidadLexica unidadDistinto() {
+   		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.DISTINTO, lex.toString());
+   	}
+   	private UnidadLexica unidadNumRealExp() {
 	   return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMREAL, lex.toString());
 	}
 	private UnidadLexica unidadCeroParteDecimal() {
@@ -291,7 +298,7 @@ public class AnalizadorLexicoTiny {
 		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.MAYORIGUAL, lex.toString());    
 	}
 	private UnidadLexica unidadPCierre() {
-		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.REFERENCIA);    
+		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.PCIERRE);    
 	}
 	private UnidadLexica unidadCastreal() {
 		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.CASTREAL, lex.toString());    
@@ -337,9 +344,6 @@ public class AnalizadorLexicoTiny {
 	}
 	private UnidadLexica unidadNumEntero() {
 		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMENTERO, lex.toString());     
-	}
-	private UnidadLexica unidadCero() {
-		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.CERO);     
 	}
 	private UnidadLexica unidadMenor() {
 		return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.MENOR);     
@@ -477,6 +481,12 @@ public class AnalizadorLexicoTiny {
 		            return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.DO);
 	         case Constantes.ENDWHILE:  
 		            return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.ENDWHILE);
+	         case Constantes.END:  
+		            return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.END);
+	         case Constantes.THIS:  
+		            return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.THIS);
+	         case Constantes.SUPER:  
+		            return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.SUPER);
 	         default:    
 	            return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NOMBRE,lex.toString());     
 	      }
@@ -487,8 +497,6 @@ public class AnalizadorLexicoTiny {
    }    
    private void error() {
      System.err.println("("+filaActual+','+columnaActual+"):Caracter inexperado");  
-     System.err.println("\"" + lex.toString() + "\"");
-     System.err.println("\"" + (char)sigCar + "\"");
      System.exit(1);
    }
 

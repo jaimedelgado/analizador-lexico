@@ -1,1 +1,18 @@
-esto es una (prueba
+# endobject
+tipo y fun; 
+Method method
+int returns InT
+interrogacion
+realidad real
+(end) _f34c
+[12]  this
+super endrec.
+pointer rec ^^^
+object < > <= >= ! != == = & &&
+out extends
+alloc free if then else return
++ - * / elsif endif % while
+do endwhile null , , , ,,,
+123456 567 2 0 -5.023e-25
+(int) (real) ( real)
+in && &
