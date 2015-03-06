@@ -1,15 +1,11 @@
 package alex;
 
 import java.io.FileInputStream;
-import java.io.FileWriter;
-import java.io.Reader;
-import java.io.InputStreamReader;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.InputStreamReader;
+import java.io.Reader;
 
 public class AnalizadorLexicoTiny {
-   private Map<ClaseLexica, String> palabrasReservadas;
    private Reader input;
    private StringBuffer lex;
    private int sigCar;
@@ -23,7 +19,7 @@ public class AnalizadorLexicoTiny {
     INICIO, SEPARADOR, POR, NOT, DISTINTO, DIV, MOD, BARRA_OR, OR, COMA, PYCOMA, REFERENCIA, AND, CAP, IDENTIFICADOR, CERO, PUNTODECIMAL, EOF, 
     NUMREAL, NUMENTERO, EXP, MENOSEXP, NUMREALEXP, PUNTO, CCIERRE, MENOR, MENORIGUAL, PAP, ICASTING, NCASTING, TCASTING,
     RCASTING, ECASTING, ACASTING, LCASTING,CASTINT, CASTREAL, PCIERRE, MAYOR, MAYORIGUAL, APOSTROFE, MAS, ASIG, IGUAL, MENOS,
-    COMENTARIO, CEROPARTEDECIMAL, CERODERECHA, 
+    COMENTARIO, CEROEXP, CERODERECHA, 
    }
 
    private Estado estado;
@@ -34,41 +30,6 @@ public class AnalizadorLexicoTiny {
     sigCar = input.read();
     filaActual=1;
     columnaActual=1;
-    this.palabrasReservadas = new HashMap<ClaseLexica, String>();
-    this.inicializaTabla();
-   }
-   private void inicializaTabla(){
-	   this.palabrasReservadas.put(ClaseLexica.TIPO, Constantes.TIPO);
-	   this.palabrasReservadas.put(ClaseLexica.INT, Constantes.INT);
-	   this.palabrasReservadas.put(ClaseLexica.REAL, Constantes.REAL);
-	   this.palabrasReservadas.put(ClaseLexica.REC, Constantes.REC);
-	   this.palabrasReservadas.put(ClaseLexica.ENDREC, Constantes.ENDREC);
-	   this.palabrasReservadas.put(ClaseLexica.POINTER, Constantes.POINTER);
-	   this.palabrasReservadas.put(ClaseLexica.OBJECT, Constantes.OBJECT);
-	   this.palabrasReservadas.put(ClaseLexica.EXTENDS, Constantes.EXTENDS);
-	   this.palabrasReservadas.put(ClaseLexica.ENDOBJECT, Constantes.ENDOBJECT);
-	   this.palabrasReservadas.put(ClaseLexica.FUN, Constantes.FUN);
-	   this.palabrasReservadas.put(ClaseLexica.METHOD, Constantes.METHOD);
-	   this.palabrasReservadas.put(ClaseLexica.RETURNS, Constantes.RETURNS);
-	   this.palabrasReservadas.put(ClaseLexica.RETURN, Constantes.RETURN);
-	   this.palabrasReservadas.put(ClaseLexica.END, Constantes.END);
-	   this.palabrasReservadas.put(ClaseLexica.THIS, Constantes.THIS);
-	   this.palabrasReservadas.put(ClaseLexica.SUPER, Constantes.SUPER);
-	   this.palabrasReservadas.put(ClaseLexica.NULL, Constantes.NULL);
-	   this.palabrasReservadas.put(ClaseLexica.IN, Constantes.IN);
-	   this.palabrasReservadas.put(ClaseLexica.OUT, Constantes.OUT);
-	   this.palabrasReservadas.put(ClaseLexica.ALLOC, Constantes.ALLOC);
-	   this.palabrasReservadas.put(ClaseLexica.FREE, Constantes.FREE);
-	   this.palabrasReservadas.put(ClaseLexica.IF, Constantes.IF);
-	   this.palabrasReservadas.put(ClaseLexica.ELSE, Constantes.ELSE);
-	   this.palabrasReservadas.put(ClaseLexica.THEN, Constantes.THEN);
-	   this.palabrasReservadas.put(ClaseLexica.ELSIF, Constantes.ELSIF);
-	   this.palabrasReservadas.put(ClaseLexica.WHILE, Constantes.WHILE);
-	   this.palabrasReservadas.put(ClaseLexica.DO, Constantes.DO);
-	   this.palabrasReservadas.put(ClaseLexica.ENDIF, Constantes.ENDIF);
-	   this.palabrasReservadas.put(ClaseLexica.ENDWHILE, Constantes.ENDWHILE);
-	   //this.palabrasReservadas.put(ClaseLexica.CERO, "cero");
-	   
    }
    public UnidadLexica sigToken() throws IOException {
      estado = Estado.INICIO;
@@ -153,10 +114,12 @@ public class AnalizadorLexicoTiny {
            case EXP:
         	   if(hayDigitoPos()) transita(Estado.NUMREALEXP);
         	   else if(hayMenos()) transita(Estado.MENOSEXP);
+        	   else if(hayCero()) transita(Estado.CEROEXP);
         	   else error();
         	   break;
            case MENOSEXP:
         	   if(hayDigitoPos()) transita(Estado.NUMREALEXP);
+        	   else if(hayCero()) transita(Estado.CEROEXP);
         	   else error();
         	   break;
            case NUMREALEXP:
@@ -241,11 +204,8 @@ public class AnalizadorLexicoTiny {
            case MOD:
         	   return unidadMod();
            case EOF: return unidadEOF();
-           case CEROPARTEDECIMAL:
-        	   if(hayDigitoPos()) transita(Estado.CEROPARTEDECIMAL);
-        	   else if(hayCero()) transita(Estado.CERODERECHA);
-        	   else return unidadCeroParteDecimal();
-        	   break;
+           case CEROEXP:
+        	   return unidadCeroExp();
            case COMENTARIO:
         	   if (hayNL()) transitaIgnorando(Estado.INICIO);
                else if (hayEOF()) transita(Estado.EOF);
@@ -253,7 +213,7 @@ public class AnalizadorLexicoTiny {
                break;
            case CERODERECHA:
         	   if(hayCero()) transita(Estado.CERODERECHA);
-        	   else if(hayDigitoPos()) transita(Estado.CEROPARTEDECIMAL);
+        	   else if(hayDigitoPos()) transita(Estado.NUMREAL);
         	   else error();
         	   break;
            case DISTINTO:
@@ -264,14 +224,14 @@ public class AnalizadorLexicoTiny {
      }    
    }
    
-   	private UnidadLexica unidadDistinto() {
+	private UnidadLexica unidadCeroExp() {
+   		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMREAL, lex.toString());
+	}
+	private UnidadLexica unidadDistinto() {
    		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.DISTINTO, lex.toString());
    	}
    	private UnidadLexica unidadNumRealExp() {
 	   return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMREAL, lex.toString());
-	}
-	private UnidadLexica unidadCeroParteDecimal() {
-		return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NUMREAL, lex.toString());
 	}
 	private UnidadLexica unidadMod() {
 	   return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.MOD);    
@@ -488,7 +448,7 @@ public class AnalizadorLexicoTiny {
 	         case Constantes.SUPER:  
 		            return new UnidadLexicaUnivaluada(filaInicio,columnaInicio,ClaseLexica.SUPER);
 	         default:    
-	            return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.NOMBRE,lex.toString());     
+	            return new UnidadLexicaMultivaluada(filaInicio,columnaInicio,ClaseLexica.IDENTIFICADOR,lex.toString());     
 	      }
    }  
  
